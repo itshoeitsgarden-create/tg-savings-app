@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Georgia 2027</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -280,9 +281,60 @@ button{font-family:inherit;}
 
 .events-mini{display:flex;flex-direction:column;gap:5px;margin-top:2px;}
 .events-mini .ev{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-faint);}
+
+/* Loading screen */
+#loadingScreen{
+  position:fixed;inset:0;background:var(--bg-2);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:9999;gap:10px;
+}
+#loadingScreen .ls-title{font-family:'Fraunces',serif;font-size:21px;color:var(--gold);}
+#loadingScreen .ls-note{font-size:13px;color:var(--ink-faint);}
+#loadingScreen .ls-spin{
+  width:22px;height:22px;border-radius:50%;border:2.5px solid var(--line-strong);border-top-color:var(--gold);
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* kind chips (small variant) */
+.chip.small{padding:7px 11px;font-size:12.5px;}
+
+/* Journal */
+.journal-day{
+  display:flex;align-items:center;gap:11px;padding:12px 2px;border-bottom:1px solid var(--line);cursor:pointer;
+}
+.journal-day:last-child{border-bottom:none;}
+.journal-day .jd-date{width:72px;flex-shrink:0;}
+.journal-day .jd-date .jd-d{font-size:15px;color:var(--ink);font-family:'Fraunces';}
+.journal-day .jd-date .jd-w{font-size:11px;color:var(--ink-faint);}
+.journal-day .jd-mid{flex:1;min-width:0;}
+.journal-day .jd-spent{font-size:13.5px;color:var(--ink-dim);}
+.journal-day .jd-econ{font-size:10.5px;color:var(--sage);}
+.journal-day .jd-save{font-size:13.5px;font-family:'Fraunces';flex-shrink:0;text-align:right;}
+.journal-day .jd-save.pos{color:var(--sage);}
+.journal-day .jd-save.neg{color:var(--coral);}
+.journal-day .jd-save.na{color:var(--ink-faint);font-size:12px;}
+.journal-day .jd-arrow{color:var(--ink-faint);font-size:13px;}
+
+/* Day detail */
+.dd-header{text-align:center;margin-bottom:16px;}
+.dd-header .dd-date{font-family:'Fraunces';font-size:19px;color:var(--ink);}
+.dd-header .dd-weekday{font-size:12.5px;color:var(--ink-faint);margin-top:2px;}
+.dd-stats{display:flex;gap:8px;margin-bottom:16px;}
+.dd-stat{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 10px;text-align:center;}
+.dd-stat .dds-lbl{font-size:11px;color:var(--ink-faint);margin-bottom:4px;}
+.dd-stat .dds-val{font-size:16px;font-family:'Fraunces';color:var(--ink);}
+.dd-stat.save .dds-val{color:var(--sage);}
+.dd-stat.over .dds-val{color:var(--coral);}
+.kind-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surface-2);color:var(--ink-faint);margin-left:6px;white-space:nowrap;}
 </style>
 </head>
 <body>
+
+<div id="loadingScreen">
+  <div class="ls-title">✈️ Georgia 2027</div>
+  <div class="ls-spin"></div>
+  <div class="ls-note">Загружаем твои данные…</div>
+</div>
 
 <div class="wrap">
   <div class="topbar">
@@ -351,6 +403,13 @@ button{font-family:inherit;}
     <div class="sb-note" id="sbNote">Эти деньги — результат твоих ежедневных решений.</div>
   </div>
 
+  <!-- Kind breakdown -->
+  <div class="stat-row" id="kindBreakdown" style="margin-bottom:14px;">
+    <div class="stat"><div class="lbl">🎯 На себя</div><div class="val" id="kindSelfVal" style="font-size:15px;">0 ₽</div></div>
+    <div class="stat"><div class="lbl">🎁 Подарки</div><div class="val" id="kindGiftVal" style="font-size:15px;">0 ₽</div></div>
+    <div class="stat"><div class="lbl">⚠️ Вынужд.</div><div class="val" id="kindForcedVal" style="font-size:15px;">0 ₽</div></div>
+  </div>
+
   <!-- Week calendar -->
   <div class="section">
     <div class="section-head">
@@ -364,7 +423,7 @@ button{font-family:inherit;}
   <div class="section">
     <div class="section-head">
       <h2>Фонды</h2>
-      <span class="link" id="btnHistory">история</span>
+      <span><span class="link" id="btnJournal">журнал</span> <span style="color:var(--ink-faint);">·</span> <span class="link" id="btnHistory">история</span></span>
     </div>
     <div class="fund-list">
       <div class="fund-item" id="fundGiftsItem">
@@ -435,6 +494,14 @@ button{font-family:inherit;}
       </div>
     </div>
     <div class="field">
+      <label>Это трата...</label>
+      <div class="chip-row" id="expKindChips">
+        <div class="chip small active" data-kind="self">🎯 На себя</div>
+        <div class="chip small" data-kind="gift">🎁 Подарок</div>
+        <div class="chip small" data-kind="forced">⚠️ Вынужденная</div>
+      </div>
+    </div>
+    <div class="field">
       <label>Оплатить из</label>
       <div class="chip-row" id="expSourceChips">
         <div class="chip active" data-src="life">💳 Жизнь</div>
@@ -468,6 +535,7 @@ button{font-family:inherit;}
 <div class="overlay" id="overlayMore">
   <div class="modal">
     <div class="modal-head"><h3>Ещё</h3><button class="modal-close" data-close="overlayMore">✕</button></div>
+    <button class="btn-secondary" data-act="journal">📓 Журнал по дням</button>
     <button class="btn-secondary" data-act="history">📖 История операций</button>
     <button class="btn-secondary" data-act="weeksettings">📅 Настройки недели</button>
     <button class="btn-secondary" data-act="giftfund">🎁 Фонд подарков</button>
@@ -482,10 +550,27 @@ button{font-family:inherit;}
   </div>
 </div>
 
+<div class="overlay" id="overlayJournal">
+  <div class="modal">
+    <div class="modal-head"><h3>📓 Журнал по дням</h3><button class="modal-close" data-close="overlayJournal">✕</button></div>
+    <div id="journalSavingsLog"></div>
+    <div id="journalDays"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayDayDetail">
+  <div class="modal">
+    <div class="modal-head"><h3 id="ddTitle">День</h3><button class="modal-close" data-close="overlayDayDetail">✕</button></div>
+    <div class="dd-header" id="ddHeader"></div>
+    <div class="dd-stats" id="ddStats"></div>
+    <div id="ddTxList"></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlayWeekSettings">
   <div class="modal">
     <div class="modal-head"><h3>Настройки недели</h3><button class="modal-close" data-close="overlayWeekSettings">✕</button></div>
-    <div class="field"><label>Бюджет на эту неделю</label><input type="number" id="wsBudget"></div>
+    <div class="field"><label>Бюджет на эту неделю (максимум 5 000 ₽)</label><input type="number" id="wsBudget" max="5000"></div>
     <div class="hint" id="wsBudgetHint" style="margin-bottom:12px;"></div>
     <label style="display:block;font-size:12.5px;color:var(--ink-faint);margin-bottom:6px;">Экономные дни</label>
     <div id="wsDays"></div>
@@ -527,12 +612,21 @@ button{font-family:inherit;}
 "use strict";
 
 /* ============ CONSTANTS ============ */
-var STORAGE_KEY = 'georgia2027_state_v1';
+var CS_PREFIX = 'g27_';
+var FUNDS_KEY = CS_PREFIX+'funds';
+var META_KEY = CS_PREFIX+'meta';
+function weeksKey(year){ return CS_PREFIX+'weeks_'+year; }
+function savingsLogKey(year){ return CS_PREFIX+'slog_'+year; }
+function incKey(ym){ return CS_PREFIX+'inc_'+ym; }
+function expKey(ym){ return CS_PREFIX+'exp_'+ym; }
+
 var DAY_MS = 86400000;
 var DAY_NAMES = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 var MONTH_NAMES = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 var CATEGORY_ICON = {products:'🍎',cafe:'☕',transport:'🚕',shopping:'👗',beauty:'💄',fun:'🎬',other:'📦'};
 var CATEGORY_NAME = {products:'Продукты',cafe:'Кафе',transport:'Транспорт',shopping:'Покупки',beauty:'Красота',fun:'Развлечения',other:'Другое'};
+var KIND_NAME = {self:'На себя', gift:'Подарок', forced:'Вынужденная'};
+var KIND_ICON = {self:'🎯', gift:'🎁', forced:'⚠️'};
 var INCOME_TYPE_NAME = {salary:'Зарплата',sold:'Продала вещь',freelance:'Подработка',gift:'Подарок деньгами'};
 var INCOME_TYPE_ICON = {salary:'💼',sold:'📦',freelance:'💻',gift:'🎁'};
 var DEFAULT_SPLIT = {
@@ -550,6 +644,68 @@ var GIFT_EVENTS = [
   {md:'04-13', name:'День рождения мамы'}
 ];
 var IMPULSE_THRESHOLD = 3000;
+var DEFAULT_WEEKLY_BUDGET = 4200; // ~600 ₽/день
+var MAX_WEEKLY_BUDGET = 5000;
+var DEFAULT_ECON_LIMIT = 500;
+
+/* ============ STORAGE ADAPTER (Telegram CloudStorage + localStorage fallback) ============ */
+function isTelegram(){
+  return !!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage);
+}
+function storageSetItem(key, value){
+  return new Promise(function(resolve, reject){
+    if(isTelegram()){
+      window.Telegram.WebApp.CloudStorage.setItem(key, value, function(err, ok){
+        if(err) reject(err); else resolve(ok);
+      });
+    } else {
+      try{ localStorage.setItem(key, value); resolve(true); }catch(e){ reject(e); }
+    }
+  });
+}
+function storageGetItems(keys){
+  return new Promise(function(resolve, reject){
+    if(keys.length===0){ resolve({}); return; }
+    if(isTelegram()){
+      window.Telegram.WebApp.CloudStorage.getItems(keys, function(err, values){
+        if(err) reject(err); else resolve(values||{});
+      });
+    } else {
+      var out={};
+      keys.forEach(function(k){ out[k]=localStorage.getItem(k); });
+      resolve(out);
+    }
+  });
+}
+function storageGetKeys(){
+  return new Promise(function(resolve, reject){
+    if(isTelegram()){
+      window.Telegram.WebApp.CloudStorage.getKeys(function(err, keys){
+        if(err) reject(err); else resolve(keys||[]);
+      });
+    } else {
+      var out=[];
+      try{
+        for(var i=0;i<localStorage.length;i++){
+          var k = localStorage.key(i);
+          if(k && k.indexOf(CS_PREFIX)===0) out.push(k);
+        }
+      }catch(e){}
+      resolve(out);
+    }
+  });
+}
+function storageRemoveItem(key){
+  return new Promise(function(resolve, reject){
+    if(isTelegram()){
+      window.Telegram.WebApp.CloudStorage.removeItem(key, function(err, ok){
+        if(err) reject(err); else resolve(ok);
+      });
+    } else {
+      try{ localStorage.removeItem(key); resolve(true); }catch(e){ reject(e); }
+    }
+  });
+}
 
 /* ============ DATE HELPERS ============ */
 function pad2(n){ return n<10 ? '0'+n : ''+n; }
@@ -611,31 +767,116 @@ function defaultState(){
     weeks:{},
     savingsLog:[]
   };
-  st.weeks[mon] = { budget:7000, econ:{}, closed:false };
+  st.weeks[mon] = { budget:DEFAULT_WEEKLY_BUDGET, econ:{}, closed:false };
   return st;
 }
 var state = null;
+var lastPersisted = {}; // key -> last-written serialized value, used to diff & avoid redundant writes
 
-function loadState(){
-  try{
-    var raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return defaultState();
-    var parsed = JSON.parse(raw);
-    if(!parsed || typeof parsed!=='object' || !parsed.funds || !parsed.weeks){
-      return defaultState();
-    }
-    if(!Array.isArray(parsed.incomes)) parsed.incomes=[];
-    if(!Array.isArray(parsed.expenses)) parsed.expenses=[];
-    if(!Array.isArray(parsed.savingsLog)) parsed.savingsLog=[];
-    return parsed;
-  }catch(e){
-    console.error('Ошибка чтения localStorage, используем стандартное состояние', e);
-    return defaultState();
-  }
+function loadStateAsync(){
+  return storageGetKeys().then(function(allKeys){
+    var relevant = allKeys.filter(function(k){ return k.indexOf(CS_PREFIX)===0; });
+    if(relevant.length===0) return null;
+    return storageGetItems(relevant).then(function(values){
+      var st = {
+        version:1, createdAt:todayISO(), goal:350000, goalStretch:400000, targetDate:'2027-06-01',
+        funds:{georgia:0,gifts:0,life:0}, incomes:[], expenses:[], weeks:{}, savingsLog:[]
+      };
+      relevant.forEach(function(key){
+        var raw = values[key];
+        if(raw===null || raw===undefined || raw===''){ return; }
+        lastPersisted[key] = raw;
+        try{
+          var parsed = JSON.parse(raw);
+          if(key===FUNDS_KEY){ st.funds = parsed; }
+          else if(key===META_KEY){
+            if(parsed.createdAt) st.createdAt = parsed.createdAt;
+            if(parsed.goal) st.goal = parsed.goal;
+            if(parsed.goalStretch) st.goalStretch = parsed.goalStretch;
+            if(parsed.targetDate) st.targetDate = parsed.targetDate;
+          }
+          else if(key.indexOf(CS_PREFIX+'weeks_')===0){
+            Object.keys(parsed).forEach(function(wk){ st.weeks[wk] = parsed[wk]; });
+          }
+          else if(key.indexOf(CS_PREFIX+'slog_')===0){ st.savingsLog = st.savingsLog.concat(parsed); }
+          else if(key.indexOf(CS_PREFIX+'inc_')===0){ st.incomes = st.incomes.concat(parsed); }
+          else if(key.indexOf(CS_PREFIX+'exp_')===0){ st.expenses = st.expenses.concat(parsed); }
+        }catch(e){ console.error('Повреждён блок данных', key, e); }
+      });
+      return st;
+    });
+  });
 }
+
+function computeBuckets(){
+  var buckets = {};
+  buckets[FUNDS_KEY] = JSON.stringify(state.funds);
+  buckets[META_KEY] = JSON.stringify({createdAt:state.createdAt, goal:state.goal, goalStretch:state.goalStretch, targetDate:state.targetDate});
+
+  var weeksByYear = {};
+  Object.keys(state.weeks).forEach(function(k){
+    var y = k.slice(0,4);
+    if(!weeksByYear[y]) weeksByYear[y] = {};
+    weeksByYear[y][k] = state.weeks[k];
+  });
+  Object.keys(weeksByYear).forEach(function(y){ buckets[weeksKey(y)] = JSON.stringify(weeksByYear[y]); });
+
+  var slogByYear = {};
+  state.savingsLog.forEach(function(entry){
+    var y = entry.week.slice(0,4);
+    if(!slogByYear[y]) slogByYear[y] = [];
+    slogByYear[y].push(entry);
+  });
+  Object.keys(slogByYear).forEach(function(y){ buckets[savingsLogKey(y)] = JSON.stringify(slogByYear[y]); });
+
+  var incByMonth = {};
+  state.incomes.forEach(function(inc){
+    var ym = inc.date.slice(0,7);
+    if(!incByMonth[ym]) incByMonth[ym] = [];
+    incByMonth[ym].push(inc);
+  });
+  Object.keys(incByMonth).forEach(function(ym){ buckets[incKey(ym)] = JSON.stringify(incByMonth[ym]); });
+
+  var expByMonth = {};
+  state.expenses.forEach(function(exp){
+    var ym = exp.date.slice(0,7);
+    if(!expByMonth[ym]) expByMonth[ym] = [];
+    expByMonth[ym].push(exp);
+  });
+  Object.keys(expByMonth).forEach(function(ym){ buckets[expKey(ym)] = JSON.stringify(expByMonth[ym]); });
+
+  return buckets;
+}
+
+var BUCKET_PREFIXES = [CS_PREFIX+'weeks_', CS_PREFIX+'slog_', CS_PREFIX+'inc_', CS_PREFIX+'exp_'];
+function isManagedBucketKey(key){
+  return BUCKET_PREFIXES.some(function(p){ return key.indexOf(p)===0; });
+}
+
 function saveState(){
   try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    var buckets = computeBuckets();
+    var writes = [];
+    Object.keys(buckets).forEach(function(key){
+      if(lastPersisted[key] !== buckets[key]){
+        writes.push(
+          storageSetItem(key, buckets[key]).then(function(){ lastPersisted[key] = buckets[key]; })
+        );
+      }
+    });
+    Object.keys(lastPersisted).forEach(function(key){
+      if(!(key in buckets) && isManagedBucketKey(key)){
+        writes.push(
+          storageRemoveItem(key).then(function(){ delete lastPersisted[key]; })
+        );
+      }
+    });
+    if(writes.length){
+      Promise.all(writes).catch(function(e){
+        console.error('Ошибка сохранения', e);
+        showToast('Не удалось сохранить изменения 😔');
+      });
+    }
   }catch(e){
     console.error('Не удалось сохранить данные', e);
     showToast('Не удалось сохранить данные 😔');
@@ -648,7 +889,7 @@ function ensureWeek(mondayIso){
   if(!state.weeks[mondayIso]){
     // find latest previous week to copy budget from
     var keys = Object.keys(state.weeks).sort();
-    var lastBudget = 7000;
+    var lastBudget = DEFAULT_WEEKLY_BUDGET;
     for(var i=keys.length-1;i>=0;i--){ lastBudget = state.weeks[keys[i]].budget; break; }
     state.weeks[mondayIso] = { budget:lastBudget, econ:{}, closed:false };
   }
@@ -731,8 +972,8 @@ function addIncome(type, amount, dateIso, comment, alloc){
   state.funds.life += alloc.life;
   saveState();
 }
-function addExpense(amount, category, dateIso, source, comment){
-  var exp = {id:uid(), amount:amount, category:category, date:dateIso, source:source, comment:comment||''};
+function addExpense(amount, category, dateIso, source, comment, kind){
+  var exp = {id:uid(), amount:amount, category:category, date:dateIso, source:source, comment:comment||'', kind:kind||'self'};
   state.expenses.push(exp);
   if(source==='life') state.funds.life -= amount;
   else state.funds.gifts -= amount;
@@ -857,6 +1098,18 @@ function render(){
     ? ('Это +'+fmtMoney(savingsSoFar)+' ближе к Грузии, если решишь перевести экономию туда.')
     : 'Пока трат больше, чем планировалось — ничего страшного, дальше пересчитаем.';
 
+  // Kind breakdown for current week
+  var kindSums = {self:0, gift:0, forced:0};
+  state.expenses.forEach(function(e){
+    if(dates.indexOf(e.date)>=0){
+      var k = e.kind||'self';
+      kindSums[k] = (kindSums[k]||0) + e.amount;
+    }
+  });
+  $('kindSelfVal').textContent = fmtMoney(kindSums.self);
+  $('kindGiftVal').textContent = fmtMoney(kindSums.gift);
+  $('kindForcedVal').textContent = fmtMoney(kindSums.forced);
+
   // Week strip
   var strip = $('weekStrip');
   strip.innerHTML='';
@@ -882,7 +1135,7 @@ function render(){
       '<div class="dlimit">'+Math.round(lim)+'</div>'+
       '<div class="ddot '+dotClass+'"></div>';
     div.addEventListener('click', (function(isoCapture){
-      return function(){ openDaySettings(isoCapture); };
+      return function(){ openDayDetail(isoCapture); };
     })(iso));
     strip.appendChild(div);
   }
@@ -893,8 +1146,6 @@ function render(){
   $('giftEventsMini').innerHTML = upcoming.map(function(ev){
     return '<div class="ev"><span>'+ev.name+'</span><span>'+fmtRu(ev.date)+'</span></div>';
   }).join('');
-
-  renderWeekSettingsHint();
 }
 
 function upcomingGiftEvents(limit){
@@ -1000,12 +1251,18 @@ document.getElementById('incSubmit').addEventListener('click', function(){
 });
 
 /* ============ EXPENSE MODAL ============ */
-var expCat='products', expSource='life';
+var expCat='products', expSource='life', expKind='self';
 document.getElementById('expCatChips').addEventListener('click', function(e){
   var chip = e.target.closest('.chip'); if(!chip) return;
   document.querySelectorAll('#expCatChips .chip').forEach(function(c){ c.classList.remove('active'); });
   chip.classList.add('active');
   expCat = chip.getAttribute('data-cat');
+});
+document.getElementById('expKindChips').addEventListener('click', function(e){
+  var chip = e.target.closest('.chip'); if(!chip) return;
+  document.querySelectorAll('#expKindChips .chip').forEach(function(c){ c.classList.remove('active'); });
+  chip.classList.add('active');
+  expKind = chip.getAttribute('data-kind');
 });
 document.getElementById('expSourceChips').addEventListener('click', function(e){
   var chip = e.target.closest('.chip'); if(!chip) return;
@@ -1018,8 +1275,9 @@ function openExpenseModal(presetSource){
   $('expDate').value = todayISO();
   $('expComment').value='';
   $('expErr').textContent='';
-  expCat='products'; expSource = presetSource||'life';
+  expCat='products'; expSource = presetSource||'life'; expKind='self';
   document.querySelectorAll('#expCatChips .chip').forEach(function(c,i){ c.classList.toggle('active', i===0); });
+  document.querySelectorAll('#expKindChips .chip').forEach(function(c,i){ c.classList.toggle('active', i===0); });
   document.querySelectorAll('#expSourceChips .chip').forEach(function(c){
     c.classList.toggle('active', c.getAttribute('data-src')===expSource);
   });
@@ -1037,19 +1295,19 @@ function tryAddExpense(){
   var comment = $('expComment').value.trim();
 
   if(amount > IMPULSE_THRESHOLD && expSource==='life'){
-    pendingExpense = {amount:amount, category:expCat, date:date, source:expSource, comment:comment};
+    pendingExpense = {amount:amount, category:expCat, date:date, source:expSource, comment:comment, kind:expKind};
     closeModal('overlayExpense');
     showImpulseCheck(pendingExpense);
     return;
   }
-  finalizeExpense(amount, expCat, date, expSource, comment);
+  finalizeExpense(amount, expCat, date, expSource, comment, expKind);
 }
-function finalizeExpense(amount, cat, date, source, comment){
+function finalizeExpense(amount, cat, date, source, comment, kind){
   var fundBefore = source==='life' ? state.funds.life : state.funds.gifts;
   var isToday = date===todayISO();
   var limitBefore = isToday ? dayLimit(date) : null;
   var spentBefore = isToday ? spentOnDate(date) : null;
-  addExpense(amount, cat, date, source, comment);
+  addExpense(amount, cat, date, source, comment, kind);
   closeModal('overlayExpense');
   render();
   if(fundBefore - amount < 0){
@@ -1080,7 +1338,7 @@ function showImpulseCheck(exp){
 document.getElementById('impulseConfirm').addEventListener('click', function(){
   closeModal('overlayImpulse');
   if(pendingExpense){
-    finalizeExpense(pendingExpense.amount, pendingExpense.category, pendingExpense.date, pendingExpense.source, pendingExpense.comment);
+    finalizeExpense(pendingExpense.amount, pendingExpense.category, pendingExpense.date, pendingExpense.source, pendingExpense.comment, pendingExpense.kind);
     pendingExpense=null;
   }
 });
@@ -1096,7 +1354,8 @@ document.getElementById('overlayMore').addEventListener('click', function(e){
   var btn = e.target.closest('[data-act]'); if(!btn) return;
   var act = btn.getAttribute('data-act');
   closeModal('overlayMore');
-  if(act==='history') openHistory();
+  if(act==='journal') openJournal();
+  else if(act==='history') openHistory();
   else if(act==='weeksettings') openWeekSettings();
   else if(act==='giftfund') openGiftFund();
   else if(act==='reset') confirmReset();
@@ -1104,6 +1363,7 @@ document.getElementById('overlayMore').addEventListener('click', function(e){
 document.getElementById('btnSettings').addEventListener('click', openWeekSettings);
 document.getElementById('btnWeekSettings').addEventListener('click', openWeekSettings);
 document.getElementById('btnHistory').addEventListener('click', openHistory);
+document.getElementById('btnJournal').addEventListener('click', openJournal);
 document.getElementById('fundGiftsItem').addEventListener('click', openGiftFund);
 
 function confirmReset(){
@@ -1167,22 +1427,34 @@ document.getElementById('historyList').addEventListener('click', function(e){
     return;
   }
   var item = e.target.closest('.hist-item');
-  if(item){ openEditTx(item.getAttribute('data-kind'), item.getAttribute('data-id')); }
+  if(item){ openEditTx(item.getAttribute('data-kind'), item.getAttribute('data-id'), 'history'); }
 });
 
 /* ============ EDIT TX ============ */
 var editingTx = null;
-function openEditTx(kind, id){
+function openEditTx(kind, id, returnTo){
   var list = kind==='income' ? state.incomes : state.expenses;
   var tx = list.find(function(x){return x.id===id;});
   if(!tx) return;
-  editingTx = {kind:kind, id:id};
+  editingTx = {kind:kind, id:id, returnTo:returnTo||null};
   $('editTxTitle').textContent = kind==='income' ? 'Редактировать поступление' : 'Редактировать трату';
   $('editTxAmount').value = tx.amount;
   $('editTxDate').value = tx.date;
   $('editTxComment').value = tx.comment||'';
   closeModal('overlayHistory');
+  closeModal('overlayDayDetail');
+  closeModal('overlayJournal');
   openModal('overlayEditTx');
+}
+function returnAfterEdit(){
+  render();
+  if(editingTx && editingTx.returnTo==='daydetail' && currentDayDetailIso){
+    openDayDetail(currentDayDetailIso);
+  } else if(editingTx && editingTx.returnTo==='history'){
+    openHistory();
+  } else if(editingTx && editingTx.returnTo==='journal'){
+    openJournal();
+  }
 }
 document.getElementById('editTxSave').addEventListener('click', function(){
   if(!editingTx) return;
@@ -1206,7 +1478,7 @@ document.getElementById('editTxSave').addEventListener('click', function(){
   }
   saveState();
   closeModal('overlayEditTx');
-  render();
+  returnAfterEdit();
   showToast('Изменения сохранены');
 });
 document.getElementById('editTxDelete').addEventListener('click', function(){
@@ -1214,7 +1486,7 @@ document.getElementById('editTxDelete').addEventListener('click', function(){
   if(confirm('Удалить эту операцию?')){
     if(editingTx.kind==='income') deleteIncome(editingTx.id); else deleteExpense(editingTx.id);
     closeModal('overlayEditTx');
-    render();
+    returnAfterEdit();
     showToast('Удалено');
   }
 });
@@ -1233,7 +1505,7 @@ function openWeekSettings(){
     html += '<div class="settings-day" data-iso="'+iso+'">'+
       '<div class="sd-name">'+DAY_NAMES[i]+', '+fromISO(iso).getDate()+'</div>'+
       '<div class="sd-toggle'+(isEcon?' on':'')+'" data-toggle="'+iso+'">🌿 эконом</div>'+
-      '<input type="number" data-econlimit="'+iso+'" value="'+(isEcon?wk.econ[iso]:500)+'" '+(isEcon?'':'style="visibility:hidden"')+'>'+
+      '<input type="number" data-econlimit="'+iso+'" value="'+(isEcon?wk.econ[iso]:DEFAULT_ECON_LIMIT)+'" '+(isEcon?'':'style="visibility:hidden"')+'>'+
       '</div>';
   }
   $('wsDays').innerHTML = html;
@@ -1253,6 +1525,10 @@ document.getElementById('wsSave').addEventListener('click', function(){
   var wk = ensureWeek(curMon);
   var newBudget = parseFloat($('wsBudget').value);
   if(!newBudget || newBudget<=0){ $('wsErr').textContent='Укажи бюджет больше нуля.'; return; }
+  if(newBudget > MAX_WEEKLY_BUDGET){
+    $('wsErr').textContent = 'Максимальный недельный бюджет — '+fmtMoney(MAX_WEEKLY_BUDGET)+'.';
+    return;
+  }
   if(newBudget > state.funds.life + weekSpent(curMon,null)){
     $('wsErr').textContent = 'Это больше, чем есть в фонде «Жизнь». Уменьши бюджет или пополни фонд.';
     return;
@@ -1264,7 +1540,7 @@ document.getElementById('wsSave').addEventListener('click', function(){
     var on = row.querySelector('.sd-toggle').classList.contains('on');
     if(on){
       var lim = parseFloat(row.querySelector('input').value);
-      newEcon[iso] = (lim>=0 && !isNaN(lim)) ? lim : 500;
+      newEcon[iso] = (lim>=0 && !isNaN(lim)) ? lim : DEFAULT_ECON_LIMIT;
     }
   });
   wk.econ = newEcon;
@@ -1273,9 +1549,161 @@ document.getElementById('wsSave').addEventListener('click', function(){
   render();
   showToast('Настройки недели сохранены');
 });
-function openDaySettings(iso){
-  openWeekSettings();
+
+/* ============ JOURNAL & DAY DETAIL ============ */
+function incomeTotalOnDate(iso){
+  var total = 0;
+  state.incomes.forEach(function(inc){ if(inc.date===iso) total += inc.amount; });
+  return total;
 }
+function giftsSpentOnDate(iso){
+  var total = 0;
+  state.expenses.forEach(function(e){ if(e.date===iso && e.source==='gifts') total += e.amount; });
+  return total;
+}
+function txForDate(iso){
+  var out = [];
+  state.expenses.forEach(function(e){ if(e.date===iso) out.push({kind2:'expense', data:e}); });
+  state.incomes.forEach(function(inc){ if(inc.date===iso) out.push({kind2:'income', data:inc}); });
+  return out;
+}
+function dayStats(iso){
+  var mon = mondayOf(iso);
+  var hasWeek = !!state.weeks[mon];
+  var limit = hasWeek ? dayLimit(iso) : null;
+  var spentLife = spentOnDate(iso);
+  var spentGifts = giftsSpentOnDate(iso);
+  var income = incomeTotalOnDate(iso);
+  var savings = (limit!==null) ? (limit - spentLife) : null;
+  var wk = state.weeks[mon];
+  var isEcon = !!(wk && wk.econ && wk.econ.hasOwnProperty(iso));
+  return {limit:limit, spentLife:spentLife, spentGifts:spentGifts, income:income, savings:savings, isEcon:isEcon};
+}
+function getAllDaysWithActivity(){
+  var daysSet = {};
+  state.expenses.forEach(function(e){ daysSet[e.date]=true; });
+  state.incomes.forEach(function(i){ daysSet[i.date]=true; });
+  daysSet[todayISO()] = true;
+  return Object.keys(daysSet).sort().reverse();
+}
+var WEEKDAY_FULL = ['понедельник','вторник','среда','четверг','пятница','суббота','воскресенье'];
+function weekdayFull(iso){
+  var dow = fromISO(iso).getDay();
+  var idx = dow===0 ? 6 : dow-1;
+  return WEEKDAY_FULL[idx];
+}
+
+function openJournal(){
+  // savings-by-week history
+  var slogHtml = '';
+  if(state.savingsLog.length>0){
+    var sorted = state.savingsLog.slice().sort(function(a,b){ return a.week<b.week?1:-1; });
+    var allocIcon = {georgia:'✈️', gifts:'🎁', life:'💳'};
+    var allocName = {georgia:'в Грузию', gifts:'в подарки', life:'на жизнь'};
+    slogHtml = '<div class="hint" style="margin-bottom:8px;font-weight:600;color:var(--ink-dim);">🔥 Экономия по неделям</div>' +
+      sorted.slice(0,10).map(function(entry){
+        return '<div class="ev" style="padding:6px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;">'+
+          '<span>'+fmtRu(entry.week)+' – '+fmtRu(addDaysISO(entry.week,6))+'</span>'+
+          '<span style="color:var(--sage);">+'+fmtMoney(entry.savings)+' '+(allocIcon[entry.allocatedTo]||'')+' '+(allocName[entry.allocatedTo]||'')+'</span>'+
+        '</div>';
+      }).join('') + '<div style="height:14px;"></div>';
+  }
+  $('journalSavingsLog').innerHTML = slogHtml;
+
+  var days = getAllDaysWithActivity();
+  var html = days.map(function(iso){
+    var st = dayStats(iso);
+    var d = fromISO(iso);
+    var totalSpent = st.spentLife + st.spentGifts;
+    var saveHtml;
+    if(st.savings===null) saveHtml = '<span class="jd-save na">—</span>';
+    else if(st.savings>=0) saveHtml = '<span class="jd-save pos">+'+fmtMoney(st.savings)+'</span>';
+    else saveHtml = '<span class="jd-save neg">'+fmtMoney(st.savings)+'</span>';
+    return '<div class="journal-day" data-iso="'+iso+'">'+
+      '<div class="jd-date"><div class="jd-d">'+d.getDate()+' '+MONTH_NAMES[d.getMonth()].slice(0,3)+'</div><div class="jd-w">'+DAY_NAMES[(d.getDay()===0?6:d.getDay()-1)]+'</div></div>'+
+      '<div class="jd-mid"><div class="jd-spent">'+(totalSpent>0? ('потрачено '+fmtMoney(totalSpent)) : (st.income>0?'нет трат':'нет операций'))+'</div>'+
+      (st.isEcon?'<div class="jd-econ">🌿 экономный день</div>':'')+
+      '</div>'+
+      saveHtml+
+      '<div class="jd-arrow">›</div>'+
+    '</div>';
+  }).join('');
+  $('journalDays').innerHTML = html || '<div class="empty-note">Пока нет записей</div>';
+  openModal('overlayJournal');
+}
+document.getElementById('journalDays').addEventListener('click', function(e){
+  var row = e.target.closest('.journal-day');
+  if(!row) return;
+  openDayDetail(row.getAttribute('data-iso'));
+});
+
+var currentDayDetailIso = null;
+function openDayDetail(iso){
+  currentDayDetailIso = iso;
+  var st = dayStats(iso);
+  var d = fromISO(iso);
+  var isToday = iso===todayISO();
+  $('ddTitle').textContent = isToday ? 'Сегодня' : fmtRu(iso);
+  $('ddHeader').innerHTML =
+    '<div class="dd-date">'+d.getDate()+' '+MONTH_NAMES[d.getMonth()]+'</div>'+
+    '<div class="dd-weekday">'+weekdayFull(iso)+(st.isEcon?' · 🌿 экономный день':'')+'</div>';
+
+  var statsHtml = '';
+  statsHtml += '<div class="dd-stat"><div class="dds-lbl">Лимит</div><div class="dds-val">'+(st.limit!==null?fmtMoney(st.limit):'—')+'</div></div>';
+  statsHtml += '<div class="dd-stat'+(st.limit!==null && st.spentLife>st.limit?' over':'')+'"><div class="dds-lbl">Потрачено</div><div class="dds-val">'+fmtMoney(st.spentLife)+'</div></div>';
+  if(st.savings!==null){
+    statsHtml += '<div class="dd-stat '+(st.savings>=0?'save':'over')+'"><div class="dds-lbl">'+(st.savings>=0?'Сэкономлено':'Превышение')+'</div><div class="dds-val">'+fmtMoney(Math.abs(st.savings))+'</div></div>';
+  }
+  $('ddStats').innerHTML = statsHtml;
+
+  var tx = txForDate(iso);
+  var txHtml = '';
+  if(st.spentGifts>0){
+    txHtml += '<div class="hint" style="margin-bottom:6px;">🎁 Из фонда подарков в этот день: '+fmtMoney(st.spentGifts)+'</div>';
+  }
+  if(tx.length===0){
+    txHtml += '<div class="empty-note">В этот день операций не было</div>';
+  } else {
+    txHtml += tx.map(function(item){
+      var dd = item.data;
+      if(item.kind2==='income'){
+        var name = INCOME_TYPE_NAME[dd.type]+(dd.comment?(' · '+escapeHtml(dd.comment)):'');
+        return '<div class="hist-item" data-id="'+dd.id+'" data-kind="income">'+
+          '<div class="hist-icon">'+INCOME_TYPE_ICON[dd.type]+'</div>'+
+          '<div class="hist-mid"><div class="hist-name">'+name+'</div></div>'+
+          '<div class="hist-amt plus">+'+fmtMoney(dd.amount)+'</div>'+
+          '<div class="hist-del" data-del="income" data-id="'+dd.id+'">🗑</div>'+
+        '</div>';
+      } else {
+        var nm2 = CATEGORY_NAME[dd.category]+(dd.source==='gifts'?' · из подарков':'')+(dd.comment?(' · '+escapeHtml(dd.comment)):'');
+        return '<div class="hist-item" data-id="'+dd.id+'" data-kind="expense">'+
+          '<div class="hist-icon">'+CATEGORY_ICON[dd.category]+'</div>'+
+          '<div class="hist-mid"><div class="hist-name">'+nm2+'<span class="kind-badge">'+(KIND_ICON[dd.kind||'self'])+' '+(KIND_NAME[dd.kind||'self'])+'</span></div></div>'+
+          '<div class="hist-amt minus">-'+fmtMoney(dd.amount)+'</div>'+
+          '<div class="hist-del" data-del="expense" data-id="'+dd.id+'">🗑</div>'+
+        '</div>';
+      }
+    }).join('');
+  }
+  $('ddTxList').innerHTML = txHtml;
+  openModal('overlayDayDetail');
+}
+document.getElementById('ddTxList').addEventListener('click', function(e){
+  var del = e.target.closest('[data-del]');
+  if(del){
+    var kind = del.getAttribute('data-del');
+    var id = del.getAttribute('data-id');
+    if(confirm('Удалить эту операцию?')){
+      if(kind==='income') deleteIncome(id); else deleteExpense(id);
+      render();
+      openDayDetail(currentDayDetailIso);
+      showToast('Удалено');
+    }
+    return;
+  }
+  var item = e.target.closest('.hist-item');
+  if(item){ openEditTx(item.getAttribute('data-kind'), item.getAttribute('data-id'), 'daydetail'); }
+});
 function renderWeekSettingsHint(){}
 
 /* ============ GIFT FUND ============ */
@@ -1337,13 +1765,35 @@ document.getElementById('weekEndBody').addEventListener('click', function(e){
 });
 
 /* ============ INIT ============ */
+function hideLoadingScreen(){
+  var el = document.getElementById('loadingScreen');
+  if(el) el.style.display='none';
+}
 function init(){
-  state = loadState();
-  var curMon = mondayOf(todayISO());
-  ensureWeek(curMon);
-  saveState();
-  render();
-  setTimeout(maybeShowWeekEnd, 350);
+  if(window.Telegram && window.Telegram.WebApp){
+    try{
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+      if(window.Telegram.WebApp.setHeaderColor) window.Telegram.WebApp.setHeaderColor('#102a30');
+      if(window.Telegram.WebApp.setBackgroundColor) window.Telegram.WebApp.setBackgroundColor('#102a30');
+    }catch(e){ console.error('Telegram WebApp init error', e); }
+  }
+  loadStateAsync().then(function(st){
+    state = st || defaultState();
+    var curMon = mondayOf(todayISO());
+    ensureWeek(curMon);
+    saveState(); // persist first-run defaults or newly created current week
+    hideLoadingScreen();
+    render();
+    setTimeout(maybeShowWeekEnd, 350);
+  }).catch(function(e){
+    console.error('Ошибка загрузки данных', e);
+    state = defaultState();
+    ensureWeek(mondayOf(todayISO()));
+    hideLoadingScreen();
+    render();
+    showToast('Не удалось загрузить сохранённые данные 😔');
+  });
 }
 init();
 
